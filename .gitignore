@@ -1,0 +1,52 @@
+# -------------------------------
+# Python
+# -------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pkl
+
+# Environment virtuale
+.venv/
+env/
+ENV/
+venv/
+.env 
+eval/.env
+eval/env
+
+# IDE/editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# -------------------------------
+# Corpus di articoli scaricati
+# -------------------------------
+# Cartelle di corpus (HTML/XML/JSON)
+data/
+downloads/
+html/
+
+# -------------------------------
+# Log e temporanei
+# -------------------------------
+*.log
+*.tmp
+*.bak
+*.swp
+
+# -------------------------------
+# Output di Elasticsearch o database locali
+# -------------------------------
+.es/
+*.sqlite
+*.db
+
