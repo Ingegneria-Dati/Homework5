@@ -1,8 +1,8 @@
-# Homework 5 – Advanced Scientific Search (papers, tables, figures) – Gruppo A + Medico
+# Homework 5 
 
 Questo progetto implementa TUTTI i punti richiesti dall'Homework 5:
-- corpus arXiv HTML per **Gruppo A**: titolo/abstract contiene `"Entity resolution"` o `"Entity matching"`
-- corpus PMC Open Access (>=500) per **Gruppo 4 medico**: *ultra-processed foods AND cardiovascular risk*
+- corpus arXiv HTML per : titolo/abstract contiene `"Entity resolution"` o `"Entity matching"`
+- corpus PMC Open Access (>=500) per : *ultra-processed foods AND cardiovascular risk*
 - indicizzazione su Elasticsearch: papers + paragraphs + tables + figures
 - ricerca base e avanzata: CLI + Web UI (Streamlit)
 - tabelle come oggetti di prima classe (renderizzate in HTML) e figure con preview
