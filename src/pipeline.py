@@ -1,4 +1,5 @@
 import argparse
+import sys 
 from . import es_setup, scrape_arxiv, scrape_pmc, build_intermediate, index_papers, index_tables_figures
 
 def main():
@@ -8,12 +9,16 @@ def main():
     ap.add_argument("--pmc-target", type=int, default=550)
     args = ap.parse_args()
 
-    es_setup.main()
+    # SALVA gli argomenti originali e "svuota" sys.argv per ingannare i sottomoduli
+    original_args = sys.argv
+    sys.argv = [sys.argv[0]]
+    try:
+        es_setup.main()
+    finally:
+        sys.argv = original_args # Ripristina SEMPRE gli argomenti originali
 
     if args.all and not args.skip_download:
         scrape_arxiv.main()
-        # scrape_pmc ha argparse interno; lo richiamo come funzione principale equivalente:
-        import sys
         sys.argv = ["scrape_pmc", "--target", str(args.pmc_target)]
         scrape_pmc.main()
 
