@@ -388,13 +388,15 @@ def main():
         mbt["MRR"].append(reciprocal_rank(ranked, relevant))
         mbt["Success@1"].append(success_at_k(ranked, relevant, 1))
         mbt["Success@3"].append(success_at_k(ranked, relevant, 3))
-        mbt["Success@1"].append(success_at_k(ranked, relevant, 1))
-        mbt["Success@3"].append(success_at_k(ranked, relevant, 3))
         mbt["Success@5"].append(success_at_k(ranked, relevant, 5))
         mbt["Success@10"].append(success_at_k(ranked, relevant, 10))
-        mbt["Success@10"].append(success_at_k(ranked, relevant, 10))
 
-
+    report = {
+        "metrics": metrics,
+        "metrics_by_type": metrics_by_type,
+        "labels": label_stats_global
+    }
+     
     print("\n=== LLM-as-a-Judge Evaluation (proxy) ===")
     for m, vals in metrics.items():
         if vals:
@@ -419,6 +421,14 @@ def main():
     for t, st in label_stats_by_type.items():
         print(f"{t.upper()}: total={st['total']}  rel>0={st['rel_pos']} ({pct(st['rel_pos'], st['total']):.1f}%)"
             f"  rel=2={st['rel_2']} ({pct(st['rel_2'], st['total']):.1f}%)")
+        
+
+    # --- SALVATAGGIO DEI RISULTATI ---
+    OUT_REPORT = Path("data/eval/metrics_summary.json")
+    with OUT_REPORT.open("w", encoding="utf-8") as f:
+        json.dump(report, f, indent=4)
+    
+    print(f"\n✅ Risultati salvati con successo in: {OUT_REPORT}")
 
 if __name__ == "__main__":
     main()

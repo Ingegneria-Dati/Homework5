@@ -1,0 +1,14 @@
+{
+  "Entity Resolution": {
+    "description": "Advanced techniques for data deduplication and record linkage. Focus on blocking strategies like Locality Sensitive Hashing (LSH), similarity joins, and matching algorithms (probabilistic vs. deterministic). Evaluation through precision-recall curves, F1-score, and scalability metrics for large-scale datasets.",
+    "targets": ["papers", "tables", "figures", "cross"]
+  },
+  "Clinical Nutrition & Epidemiology": {
+    "description": "Impact of ultra-processed foods (UPF) on cardiovascular disease (CVD) risk. Analysis of dietary patterns (Mediterranean vs. Western diet), hypertension biomarkers, nutritional status assessment using NOVA classification, and longitudinal observational studies in elderly or adolescent cohorts.",
+    "targets": ["papers", "tables", "figures", "cross"]
+  },
+  "Search Engine Evaluation": {
+    "description": "Information Retrieval (IR) benchmarks. Metrics including Mean Reciprocal Rank (MRR), Precision at K (P@K), Normalized Discounted Cumulative Gain (nDCG), and Mean Average Precision (MAP). Focus on Reciprocal Rank Fusion (RRF) and multimodality ranking.",
+    "targets": ["papers", "tables", "cross"]
+  }
+}
