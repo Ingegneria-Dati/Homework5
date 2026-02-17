@@ -89,8 +89,9 @@ def search_index(
     body["size"] = size
     # Aggiungi highlight per vedere dove ha trovato le parole
     body["highlight"] = {
-        "fields": { f.split("^")[0]: {} for f in fields },
-        "pre_tags": ["<em>"], "post_tags": ["</em>"]
+        "fields": { f.split("^")[0]: {"number_of_fragments": 2} for f in fields },
+        "pre_tags": ["<mark style='background-color: yellow;'>"], 
+        "post_tags": ["</mark>"]
     }
     return es.search(index=index, body=body)
 
@@ -122,8 +123,8 @@ def cross_search(
     es: Elasticsearch,
     query: str,
     *,
-    size_each: int = 10,
-    size_total: Optional[int] = None,
+    size_each: int = 20,
+    size_total: Optional[int] = 20,
     use_query_string: Optional[bool] = None,
     filters: Optional[SearchFilters] = None,
 ) -> List[Tuple[str, float, Dict[str, Any]]]:
@@ -132,26 +133,23 @@ def cross_search(
     # 1. Cerca Papers
     res_p = search_index(
         es, INDEX_PAPERS, query,
-        ["title^3", "abstract^2", "full_text"],
+        ["title^4", "abstract^2", "full_text"],
         size_each, use_query_string=use_query_string, filters=filters
     )
 
-    # 2. Prepara filtri per oggetti (Table/Fig)
-    # Se filtriamo per source nei paper, vale anche per le figure
-    f_objs = SearchFilters(source=filters.source) if (filters and filters.source) else None
     
     # 3. Cerca Tabelle
     res_t = search_index(
         es, INDEX_TABLES, query,
-        ["caption^3", "body^2", "mentions", "context_paragraphs"],
-        size_each, use_query_string=use_query_string, filters=f_objs
+        ["caption^4", "body^3", "mentions", "context_paragraphs^2"],
+        size_each, use_query_string=use_query_string, filters=filters
     )
 
     # 4. Cerca Figure
     res_f = search_index(
         es, INDEX_FIGURES, query,
-        ["caption^3", "mentions", "context_paragraphs"],
-        size_each, use_query_string=use_query_string, filters=f_objs
+        ["caption^4", "mentions", "context_paragraphs^2"],
+        size_each, use_query_string=use_query_string, filters=filters
     )
 
     # 5. RRF Fusion
@@ -161,9 +159,7 @@ def cross_search(
         ("figure", res_f.get("hits", {}).get("hits", [])),
     ])
 
-    if size_total is not None:
-        return merged[:size_total]
-    return merged
+    return merged[:size_total] if size_total else merged
 
 def es_client() -> Elasticsearch:
-    return Elasticsearch(ES_HOST, request_timeout=30)
+    return Elasticsearch(ES_HOST, request_timeout=60)

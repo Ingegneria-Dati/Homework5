@@ -191,18 +191,26 @@ st.markdown("Ricerca unificata su **ArXiv** (HTML) e **PubMed Central** (XML)")
 
 # --- SIDEBAR: FILTRI ---
 with st.sidebar:
-    st.header("🔍 Filtri")
+    st.header("🔍 Affina Ricerca")
     
     source_sel = st.selectbox("Sorgente Dati", ["(Tutte)", "arxiv", "pmc"], index=0)
     source_filter = None if source_sel == "(Tutte)" else source_sel
     
-    st.markdown("---")
+    st.subheader("📅 Intervallo Temporale")
+    # Ipotizziamo articoli dal 2000 al 2026
+    date_start = st.text_input("Dal (AAAA-MM-DD)", value="")
+    date_end = st.text_input("Al (AAAA-MM-DD)", value="")
     
-    use_query_string = st.checkbox("Sintassi Avanzata (AND/OR)", value=False, help="Usa sintassi Lucene es: 'cancer AND risk'")
-    topk = st.slider("Risultati Max", 5, 100, 20)
+    st.markdown("---")
+    use_query_string = st.checkbox("Sintassi Avanzata (Lucene)", value=True)
+    topk = st.slider("Risultati da mostrare", 5, 50, 15)
 
-filters = SearchFilters(source=source_filter, date_from=None, date_to=None)
-
+# Aggiorna l'oggetto filters
+filters = SearchFilters(
+    source=source_filter, 
+    date_from=date_start if date_start else None, 
+    date_to=date_end if date_end else None
+)
 # --- BARRA DI RICERCA ---
 query = st.text_input("Inserisci la tua query", placeholder="es. 'entity resolution' OR 'ultra-processed foods'", value="")
 search_mode = st.radio("Cerca in:", ["Cross-Search (RRF)", "Solo Articoli", "Solo Tabelle", "Solo Figure"], horizontal=True)
@@ -278,21 +286,43 @@ def candidate_paper_dirs(images_root: Path, paper_id: str | None):
 # Funzione Helper per visualizzare le card
 def render_card(title, score, meta, content=None, url=None, image_url=None, html_content=None):
     with st.container():
-        st.markdown(f"#### {title}")
+        # Layout a colonne per titolo e score
+        col1, col2 = st.columns([0.85, 0.15])
+        with col1:
+            st.markdown(f"#### {title}")
+        with col2:
+            st.markdown(f"`Score: {score:.3f}`")
         
         src_str = meta.get('source', 'UNK').upper()
         color = "blue" if "ARXIV" in src_str else "green"
-        st.markdown(f":{color}[**{src_str}**] | 🔑 Score: `{score:.3f}`")
+        st.markdown(f":{color}[**{src_str}**] | 📅 Data: `{meta.get('date', 'N/A')}`")
         
         if content:
+            st.markdown(f"**Abstract/Preview:**")
             safe_content = content or ""
-            st.caption(safe_content[:600] + "..." if len(safe_content) > 600 else safe_content)
+            st.write(safe_content[:600] + "..." if len(safe_content) > 600 else safe_content)
         
+
+        # --- MOSTRA CONTESTO E MENTIONS ---
+        mentions = meta.get("mentions", [])
+        if mentions:
+            with st.expander(f"📖 Vedi {len(mentions)} citazioni nel testo (Mentions)"):
+                for m in mentions:
+                    st.write(f"- {m}")
+
+        ctx_paras = meta.get("context_paragraphs", [])
+        if ctx_paras:
+            with st.expander("🌐 Paragrafi di contesto (Rilevanza correlata)"):
+                for cp in ctx_paras:
+                    st.write(f"- {cp}")
+
         # --- LOGICA TABELLE ---
         if html_content:
             with st.expander("Visualizza Tabella"):
-                st.components.v1.html(html_content, height=300, scrolling=True)
-        
+                st.components.v1.html(
+                    f"<div style='overflow-x:auto; font-family:sans-serif;'>{html_content}</div>", 
+                    height=350, scrolling=True
+                )
         # --- LOGICA FIGURE (MIGLIORATA) ---
         elif image_url:
             
