@@ -71,10 +71,11 @@ Apri il link mostrato (tipicamente http://localhost:8501).
 ## 5) CLI
 Esempi:
 ```bash
-python -m src.search_cli --index papers --query '"entity resolution"'
-python -m src.search_cli --index tables --query '(F1 OR precision OR recall) AND (matching OR linkage)'
-python -m src.search_cli --index figures --query '(workflow OR pipeline) AND (entity resolution)'
-python -m src.search_cli --index cross --query '"ultra-processed" AND cardiovascular'
+python -m src.search_cli "entity resolution"
+python -m src.search_cli "entity matching" --source arxiv
+python -m src.search_cli "ultra-processed foods cardiovascular" --source pmc
+python -m src.search_cli "entity resolution" --from-date 2020 --to-date 2024
+python -m src.search_cli "entity resolution blocking" --limit 10
 ```
 
 ## 6) Cartelle dati
