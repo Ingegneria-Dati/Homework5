@@ -1,4 +1,5 @@
 
+
 import csv
 import json
 import math
@@ -7,11 +8,11 @@ from pathlib import Path
 from typing import Dict, List
 
 from elasticsearch import Elasticsearch
-from src.search_core import cross_search
+
 from src.config import ES_HOST, INDEX_PAPERS, INDEX_TABLES, INDEX_FIGURES
 
-QUERIES_PATH = Path("data/eval/queries_llm.jsonl")
-QRELS_PATH = Path("data/eval/qrels_llm.tsv")
+QUERIES_PATH = Path("data/eval_noLLM/queries_noLLM.jsonl")
+QRELS_PATH = Path("data/eval_noLLM/qrels_noLLM.tsv")
 
 TOP_K = 10
 
@@ -65,6 +66,31 @@ def success_at_k(ranked: List[str], relevant: set, k: int) -> float:
 
 
 
+def build_ranked_list(es: Elasticsearch, target: str, query: str, k: int) -> List[str]:
+    def search(index: str, fields: List[str], doc_type: str) -> List[str]:
+        body = {"size": k, "query": {"multi_match": {"query": query, "fields": fields}}}
+        hits = es.search(index=index, body=body)["hits"]["hits"]
+        ranked = []
+        for h in hits:
+            s = h["_source"]
+            if doc_type == "paper":
+                ranked.append(s["paper_id"])
+            elif doc_type == "table":
+                ranked.append(f"{s['paper_id']}::{s['table_id']}")
+            elif doc_type == "figure":
+                ranked.append(f"{s['paper_id']}::{s['figure_id']}")
+        return ranked
+
+    # For metrics we evaluate per-target, not cross mixed (cross would require score calibration).
+    if target == "papers":
+        return search(INDEX_PAPERS, ["title^2", "abstract", "full_text"], "paper")
+    if target == "tables":
+        return search(INDEX_TABLES, ["caption^2", "body", "mentions", "context_paragraphs"], "table")
+    if target == "figures":
+        return search(INDEX_FIGURES, ["caption^2", "mentions", "context_paragraphs"], "figure")
+    # default: pick papers as a baseline
+    return search(INDEX_PAPERS, ["title^2", "abstract", "full_text"], "paper")
+
 def pct(a, b):
     return (a / b * 100.0) if b else 0.0
 
@@ -95,7 +121,6 @@ def main():
     "papers": defaultdict(list),
     "tables": defaultdict(list),
     "figures": defaultdict(list),
-    "cross": defaultdict(list),
     }
 
     # stats globali e per tipo
@@ -104,7 +129,6 @@ def main():
         "papers": {"total": 0, "rel_pos": 0, "rel_2": 0},
         "tables": {"total": 0, "rel_pos": 0, "rel_2": 0},
         "figures": {"total": 0, "rel_pos": 0, "rel_2": 0},
-        "cross": {"total": 0, "rel_pos": 0, "rel_2": 0},
     }
 
 
@@ -113,25 +137,11 @@ def main():
         qtext = q["text"]
         target = q["target"]
 
+        # We compute metrics only for single-target queries (papers/tables/figures)
+        if target not in ("papers", "tables", "figures"):
+            continue
 
-        results = cross_search(
-            es,
-            qtext,
-            size_each=20,
-            size_total=TOP_K
-        )
-
-        ranked = []
-
-        for kind, score, hit in results:
-            src = hit["_source"]
-
-            if kind == "paper":
-                ranked.append(src.get("paper_id") or hit["_id"])
-            elif kind == "table":
-                ranked.append(f"{src.get('paper_id')}::{src.get('table_id')}")
-            elif kind == "figure":
-                ranked.append(f"{src.get('paper_id')}::{src.get('figure_id')}")
+        ranked = build_ranked_list(es, target, qtext, TOP_K)
 
         rel_scores = qrels[qid]
 
@@ -171,13 +181,15 @@ def main():
         mbt["MRR"].append(reciprocal_rank(ranked, relevant))
         mbt["Success@1"].append(success_at_k(ranked, relevant, 1))
         mbt["Success@3"].append(success_at_k(ranked, relevant, 3))
-        mbt["Success@1"].append(success_at_k(ranked, relevant, 1))
-        mbt["Success@3"].append(success_at_k(ranked, relevant, 3))
         mbt["Success@5"].append(success_at_k(ranked, relevant, 5))
         mbt["Success@10"].append(success_at_k(ranked, relevant, 10))
-        mbt["Success@10"].append(success_at_k(ranked, relevant, 10))
 
-
+    report = {
+        "metrics": metrics,
+        "metrics_by_type": metrics_by_type,
+        "labels": label_stats_global
+    }
+     
     print("\n=== LLM-as-a-Judge Evaluation (proxy) ===")
     for m, vals in metrics.items():
         if vals:
@@ -202,6 +214,14 @@ def main():
     for t, st in label_stats_by_type.items():
         print(f"{t.upper()}: total={st['total']}  rel>0={st['rel_pos']} ({pct(st['rel_pos'], st['total']):.1f}%)"
             f"  rel=2={st['rel_2']} ({pct(st['rel_2'], st['total']):.1f}%)")
+        
+
+    # --- SALVATAGGIO DEI RISULTATI ---
+    OUT_REPORT = Path("data/eval_noLLM/metrics_summary.json")
+    with OUT_REPORT.open("w", encoding="utf-8") as f:
+        json.dump(report, f, indent=4)
+    
+    print(f"\n✅ Risultati salvati con successo in: {OUT_REPORT}")
 
 if __name__ == "__main__":
     main()

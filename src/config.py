@@ -1,41 +1,3 @@
-"""
-from pathlib import Path
-
-ES_HOST = "http://localhost:9200"
-
-ROOT = Path(__file__).resolve().parents[1]
-DATA = ROOT / "data"
-ARXIV_HTML_DIR = DATA / "arxiv_html"
-PMC_HTML_DIR = DATA / "pmc_html"
-RAW_JSON_DIR = DATA / "raw_json"
-INTERMEDIATE_DIR = DATA / "intermediate_json"
-LOG_DIR = DATA / "logs"
-
-ARXIV_HTML_DIR.mkdir(parents=True, exist_ok=True)
-PMC_HTML_DIR.mkdir(parents=True, exist_ok=True)
-RAW_JSON_DIR.mkdir(parents=True, exist_ok=True)
-INTERMEDIATE_DIR.mkdir(parents=True, exist_ok=True)
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-# Gruppo A (arXiv)
-ARXIV_PHRASES = ["entity resolution", "entity matching"]
-ARXIV_QUERY = '(all:"entity resolution" OR all:"entity matching")'
-ARXIV_MAX_RESULTS = 5000
-
-# Gruppo medico (PMC)
-PMC_QUERY = (
-    '("ultra-processed" OR ultraprocessed OR "NOVA") '
-    'AND (cardiovascular OR cardiometabolic OR heart OR stroke OR hypertension OR "cardiovascular risk")'
-)
-
-# Indici
-INDEX_PAPERS = "hw5_papers"
-INDEX_PARAGRAPHS = "hw5_paragraphs"
-INDEX_TABLES = "hw5_tables"
-INDEX_FIGURES = "hw5_figures"
-EMBEDDINGS_ENABLED = False
-"""
-
 from pathlib import Path
 import re
 ES_HOST = "http://localhost:9200"
@@ -102,29 +64,6 @@ ARXIV_PHRASES = [
     re.compile(r'\bEntity\s+matching\b', re.IGNORECASE),
 ]
 
-"""
-query_phrases = [
-    'ti:"entity resolution"',
-    'abs:"entity resolution"',
-    'ti:"entity-resolution"',
-    'abs:"entity-resolution"',
-    'ti:"entity matching"',
-    'abs:"entity matching"',
-    'ti:"entity-matching"',
-    'abs:"entity-matching"',
-]
-ARXIV_QUERY = " OR ".join(query_phrases)
-"""
-
-
-#ARXIV_QUERY = " OR ".join(parts)
-
-
-
-#ARXIV_QUERY = (
-#  'ti:"entity resolution" OR abs:"entity resolution" OR '
-#  'ti:"entity matching" OR abs:"entity matching"'
-#)
 
 query_parts = [
     '(ti:entity resolution)',
@@ -136,11 +75,6 @@ ARXIV_QUERY = " OR ".join(query_parts)
 ARXIV_MAX_RESULTS = 5000
 
 
-# Gruppo medico (PMC)
-#PMC_QUERY = (
- #   '("ultra-processed" OR ultraprocessed OR "NOVA") '
- #   'AND (cardiovascular OR cardiometabolic OR heart OR stroke OR hypertension OR "cardiovascular risk")'
-#)
 PMC_XML_DIR = Path("data/pmc_xml")
 PMC_XML_DIR.mkdir(parents=True, exist_ok=True)
 RAW_JSON_DIR = Path("data/raw_json")
@@ -157,13 +91,7 @@ IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 # URL del servizio Open Access di PMC
 OA_URL = "https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi"
 
-"""
-PMC_QUERY = (
-    '("ultra-processed"[tiab] OR "ultraprocessed"[tiab] OR UPF[tiab] OR "NOVA"[tiab] OR "NOVA classification"[tiab]) '
-    'AND (cardiovascular[tiab] OR cardiometabolic[tiab] OR "heart"[tiab] OR stroke[tiab] OR hypertension[tiab]) '
-    'AND (risk[tiab] OR incidence[tiab] OR association[tiab] OR mortality[tiab])'
-)
-"""
+
 # Indici
 INDEX_PAPERS = "hw5_papers"
 INDEX_PARAGRAPHS = "hw5_paragraphs"
