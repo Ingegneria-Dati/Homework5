@@ -1,13 +1,19 @@
-# Homework 5 
+# Scientific Research Search Engine
 
-Questo progetto implementa TUTTI i punti richiesti dall'Homework 5:
-- corpus arXiv HTML per : titolo/abstract contiene `"Entity resolution"` o `"Entity matching"`
-- corpus PMC Open Access (>=500) per : *ultra-processed foods AND cardiovascular risk*
-- indicizzazione su Elasticsearch: papers + paragraphs + tables + figures
-- ricerca base e avanzata: CLI + Web UI (Streamlit)
-- tabelle come oggetti di prima classe (renderizzate in HTML) e figure con preview
-- contesti: mentions dirette + paragrafi contestuali via `more_like_this` su indice paragrafi
+Motore di ricerca unificato per articoli scientifici provenienti da:
 
+- **arXiv (HTML / ar5iv)**: titolo/abstract contiene `"Entity resolution"` o `"Entity matching"`
+- **PubMed Central (PMC XML)**: titolo/abstract `"ultra-processed foods AND cardiovascular risk"`
+
+## Pipeline
+Il sistema implementa una pipeline completa:
+1. Scraping documenti
+2. Parsing e normalizzazione
+3. Creazione JSON intermedi strutturati
+4. Indicizzazione in Elasticsearch
+5. Ricerca cross-index (paper, tabelle, figure)
+6. Interfaccia CLI e Web (Streamlit)
+   
 ## 0) Prerequisiti
 - Python 3.10+ (consigliato 3.11)
 - Docker Desktop (consigliato) per Elasticsearch
@@ -36,55 +42,39 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-
-## 3) Pipeline completa (consigliata)
-Da root progetto:
-
+## 3) Esecuzione step-by-step
 ```bash
-python -m src.pipeline --all
-```
-
-Questo:
-1) crea indici ES
-2) scarica arXiv HTML (tutti quelli disponibili con match)
-3) scarica >=550 PMC OA (per garantire >=500 validi)
-4) costruisce JSON intermedi
-5) indicizza papers + paragrafi
-6) indicizza tabelle + figure (con mentions e context_paragraphs)
-
-### Esecuzione step-by-step
-```bash
-python -m src.es_setup
-python -m src.scrape_arxiv
-python -m src.scrape_pmc --target 550
+python -m src.indexing.es_setup
+python -m src.scrape.scrape_arxiv
+python -m src.scrape.scrape_pmc 
 python -m src.build_intermediate
-python -m src.index_papers
-python -m src.index_tables_figures
+python -m src.indexing.index_papers
+python -m src.indexing.index_tables_figures
 ```
 
 ## 4) UI Web (Streamlit)
 ```bash
-streamlit run src/app_streamlit.py
+streamlit run src/search/app_streamlit.py
 ```
-Apri il link mostrato (tipicamente http://localhost:8501).
+<img width="1713" height="908" alt="image" src="https://github.com/user-attachments/assets/49c44ec6-ecbf-4604-bb92-6fea7050ad89" />
+
+
+
 
 ## 5) CLI
 Esempi:
 ```bash
-python -m src.search_cli "entity resolution"
-python -m src.search_cli "entity matching" --source arxiv
-python -m src.search_cli "ultra-processed foods cardiovascular" --source pmc
-python -m src.search_cli "entity resolution" --from-date 2020 --to-date 2024
-python -m src.search_cli "entity resolution blocking" --limit 10
+python -m src.search.search_cli "entity resolution"
+python -m src.search.search_cli "entity matching" --source arxiv
+python -m src.search.search_cli "ultra-processed foods cardiovascular" --source pmc
 ```
 
-## 6) Cartelle dati
-- `data/arxiv_html/` : HTML arXiv scaricati
-- `data/pmc_html/` : HTML PMC OA scaricati
-- `data/raw_json/` : metadati grezzi (arXiv API / parsing html)
-- `data/intermediate_json/` : JSON strutturati (paper, paragraphs, tables, figures)
+<img width="1735" height="237" alt="image" src="https://github.com/user-attachments/assets/ca9c1f5c-5ddc-4a3e-89c5-5454b1621f27" />
 
-## 7) Note pratiche
-- Non tutti i paper arXiv hanno la pagina `/html/<id>`: quelli senza HTML vengono loggati come `NO_HTML`.
-- Per PMC la ricerca parte da PubMed e poi filtra i record che hanno una versione in PMC; questo è il modo robusto per raggiungere >=500 OA.
+## Valutazioni
+- **Modello LLM llama**
 
+<img width="1347" height="241" alt="image" src="https://github.com/user-attachments/assets/0a731b94-e9cc-400d-b1eb-794e39673a5d" />
+
+- **Manual**
+<img width="1346" height="417" alt="image" src="https://github.com/user-attachments/assets/098597d2-22fe-4222-872a-a28e97e50802" />
