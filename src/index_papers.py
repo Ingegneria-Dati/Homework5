@@ -63,7 +63,9 @@ def main():
                 "authors": doc.get("authors", []),
                 "date": doc.get("date"),    # Formato YYYY-MM-DD
                 "abstract": doc.get("abstract", ""),
-                "full_text": doc.get("full_text", ""), # Testo completo per ricerca
+                "full_text": doc.get("full_text", ""), # Testo completo per ricerca,
+                "doc_url": doc.get("doc_url") or doc.get("url", ""),
+
             }
             
             # Aggiunta embedding se abilitato (e se mappato in es_setup)

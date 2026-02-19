@@ -131,7 +131,9 @@ def main():
                     "context_paragraphs": ctx_paras,
                     "url": doc.get("url", ""),
                     "source": source,
-                    "date": doc.get("date") # Utile per filtri
+                    "date": doc.get("date"), # Utile per filtri
+                    "doc_url": doc.get("doc_url") or doc.get("url", ""),
+
                 }
                 if vec: src["caption_vec"] = vec # O caption_body_vec
 
@@ -170,7 +172,9 @@ def main():
                     "context_paragraphs": ctx_paras,
                     "url": doc.get("url", ""),
                     "source": source,
-                    "date": doc.get("date")
+                    "date": doc.get("date"),
+                    "doc_url": doc.get("doc_url") or doc.get("url", ""),
+
                 }
                 if vec: src["caption_vec"] = vec
 

@@ -1,165 +1,170 @@
 
+
+# src/search_core.py
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional, List, Dict, Any, Tuple
 from elasticsearch import Elasticsearch
 
-from .config import (
-    ES_HOST,
-    INDEX_PAPERS,
-    INDEX_TABLES,
-    INDEX_FIGURES,
-    RRF_K,  # Aggiungi in config.py: RRF_K = 60
-    USE_QUERY_STRING_BY_DEFAULT, # Aggiungi in config.py: USE_QUERY_STRING_BY_DEFAULT = True
-)
+from src.config import ES_HOST
+
 
 @dataclass
 class SearchFilters:
-    source: Optional[str] = None  # "arxiv" | "pmc"
-    date_from: Optional[str] = None  # ISO date or year
-    date_to: Optional[str] = None
+    source: Optional[str] = None        # "arxiv" | "pmc" | None
+    date_from: Optional[str] = None     # "YYYY-MM-DD" or "YYYY"
+    date_to: Optional[str] = None       # "YYYY-MM-DD" or "YYYY"
 
-def _base_bool_filter(filters: Optional[SearchFilters]) -> List[Dict[str, Any]]:
-    out: List[Dict[str, Any]] = []
+
+def _build_filters(filters: Optional[SearchFilters]) -> List[Dict[str, Any]]:
+    flt: List[Dict[str, Any]] = []
     if not filters:
-        return out
-    
-    # Filtro Fonte
+        return flt
+
     if filters.source:
-        out.append({"term": {"source": filters.source}})
-    
-    # Filtro Data
+        flt.append({"term": {"source": filters.source}})
+
+    # date range (se il mapping di date è "date")
     if filters.date_from or filters.date_to:
         rng: Dict[str, Any] = {}
         if filters.date_from:
             rng["gte"] = filters.date_from
         if filters.date_to:
             rng["lte"] = filters.date_to
-        # Nota: il campo data nell'indice deve chiamarsi "date"
-        out.append({"range": {"date": rng}})
-    return out
+        flt.append({"range": {"date": rng}})
 
-def build_query(
-    query: str,
-    fields: List[str],
-    *,
-    use_query_string: Optional[bool] = None,
-    filters: Optional[SearchFilters] = None,
-) -> Dict[str, Any]:
-    """Build an ES query handling both simple match and complex query_string."""
-    if use_query_string is None:
-        use_query_string = USE_QUERY_STRING_BY_DEFAULT
+    return flt
 
-    q: Dict[str, Any]
-    if use_query_string:
-        q = {
-            "query_string": {
-                "query": query,
-                "fields": fields,
-                "default_operator": "AND",
-            }
-        }
-    else:
-        q = {
-            "multi_match": {
-                "query": query,
-                "fields": fields,
-                "type": "best_fields",
-                "operator": "AND",
-            }
-        }
-
-    f = _base_bool_filter(filters)
-    if not f:
-        return {"query": q}
-    
-    return {"query": {"bool": {"must": [q], "filter": f}}}
 
 def search_index(
     es: Elasticsearch,
     index: str,
     query: str,
     fields: List[str],
-    size: int = 20,
-    *,
-    use_query_string: Optional[bool] = None,
+    topk: int = 20,
     filters: Optional[SearchFilters] = None,
 ) -> Dict[str, Any]:
-    body = build_query(query, fields, use_query_string=use_query_string, filters=filters)
-    body["size"] = size
-    # Aggiungi highlight per vedere dove ha trovato le parole
-    body["highlight"] = {
-        "fields": { f.split("^")[0]: {"number_of_fragments": 2} for f in fields },
-        "pre_tags": ["<mark style='background-color: yellow;'>"], 
-        "post_tags": ["</mark>"]
+    """
+    Ricerca SOLO con Elasticsearch multi_match (niente query_string/Lucene).
+    fields può includere boost con ^ (es: "title^3").
+    """
+    query = (query or "").strip()
+    if not query:
+        return {"hits": {"hits": []}}
+
+    body = {
+        "size": topk,
+        "query": {
+            "bool": {
+                "must": [
+                    {
+                        "multi_match": {
+                            "query": query,
+                            "fields": fields,
+                            "type": "best_fields",
+                            "operator": "and",
+                            "fuzziness": "AUTO",  # aiuta typo leggeri
+                        }
+                    }
+                ],
+                "filter": _build_filters(filters),
+            }
+        },
     }
-    return es.search(index=index, body=body)
 
-def rrf_fuse(
-    ranked_lists: List[Tuple[str, List[Dict[str, Any]]]],
-    *,
-    k: int = RRF_K,
-) -> List[Tuple[str, float, Dict[str, Any]]]:
-    """Reciprocal Rank Fusion algorithm."""
-    scores: Dict[Tuple[str, str], float] = {}
-    hits_map: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    return es.search(index=index, body=body, request_timeout=30)
 
-    for kind, hits in ranked_lists:
-        for rank, h in enumerate(hits, start=1):
-            doc_id = h.get("_id") or ""
-            if not doc_id: continue
-            
-            key = (kind, doc_id)
-            # RRF formula: sum(1 / (k + rank))
-            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank)
-            hits_map[key] = h
-
-    # Ordina per score decrescente
-    merged = [(kind, sc, hits_map[(kind, docid)]) for (kind, docid), sc in scores.items()]
-    merged.sort(key=lambda x: x[1], reverse=True)
-    return merged
 
 def cross_search(
     es: Elasticsearch,
     query: str,
-    *,
+    index_papers: str,
+    index_tables: str,
+    index_figures: str,
     size_each: int = 20,
-    size_total: Optional[int] = 20,
-    use_query_string: Optional[bool] = None,
+    size_total: int = 20,
     filters: Optional[SearchFilters] = None,
+    mode="auto"
 ) -> List[Tuple[str, float, Dict[str, Any]]]:
-    """Search papers, tables, figures indices and fuse results."""
-    
-    # 1. Cerca Papers
-    res_p = search_index(
-        es, INDEX_PAPERS, query,
-        ["title^4", "abstract^2", "full_text"],
-        size_each, use_query_string=use_query_string, filters=filters
-    )
+    """
+    Cross-search semplice:
+    - esegue 3 ricerche separate (papers/tables/figures)
+    - fonde i risultati ordinando per score normalizzato (semplice, non RRF puro)
+    Ritorna lista di (kind, score, hit)
+    """
+    q = (query or "").strip()
+    if not q:
+        return []
 
-    
-    # 3. Cerca Tabelle
-    res_t = search_index(
-        es, INDEX_TABLES, query,
-        ["caption^4", "body^3", "mentions", "context_paragraphs^2"],
-        size_each, use_query_string=use_query_string, filters=filters
-    )
+    papers = search_index(
+        es, index_papers, q,
+        fields=["title^3", "abstract^2", "full_text"],
+        topk=size_each,
+        filters=filters,
+    ).get("hits", {}).get("hits", [])
 
-    # 4. Cerca Figure
-    res_f = search_index(
-        es, INDEX_FIGURES, query,
-        ["caption^4", "mentions", "context_paragraphs^2"],
-        size_each, use_query_string=use_query_string, filters=filters
-    )
+    tables = search_index(
+        es, index_tables, q,
+        fields=["caption^3", "body^2", "mentions", "context_paragraphs"],
+        topk=size_each,
+        filters=filters,
+    ).get("hits", {}).get("hits", [])
 
-    # 5. RRF Fusion
-    merged = rrf_fuse([
-        ("paper", res_p.get("hits", {}).get("hits", [])),
-        ("table", res_t.get("hits", {}).get("hits", [])),
-        ("figure", res_f.get("hits", {}).get("hits", [])),
-    ])
+    figures = search_index(
+        es, index_figures, q,
+        fields=["caption^3", "mentions", "context_paragraphs"],
+        topk=size_each,
+        filters=filters,
+    ).get("hits", {}).get("hits", [])
 
-    return merged[:size_total] if size_total else merged
+    # normalizza score per ciascuna lista (evita che un indice domini)
+    def norm(hits):
+        if not hits:
+            return []
+        mx = max((h.get("_score") or 0.0) for h in hits) or 1.0
+        out = []
+        for h in hits:
+            out.append((h, float(h.get("_score") or 0.0) / mx))
+        return out
+
+    merged: List[Tuple[str, float, Dict[str, Any]]] = []
+
+    for h, s in norm(papers):
+        merged.append(("paper", s, h))
+    for h, s in norm(tables):
+        merged.append(("table", s, h))
+    for h, s in norm(figures):
+        merged.append(("figure", s, h))
+
+    merged.sort(key=lambda x: x[1], reverse=True)
+    return merged[:size_total]
+
+def term_query(term: str, fields: list[str]) -> dict:
+    t = (term or "").strip()
+
+    is_phrase = t.startswith('"') and t.endswith('"') and len(t) >= 2
+    if is_phrase:
+        phrase = t[1:-1].strip()
+        if not phrase:
+            return {"match_all": {}}
+        return {
+            "multi_match": {
+                "query": phrase,
+                "fields": fields,
+                "type": "phrase",
+                "slop": 0,
+            }
+        }
+
+    return {
+        "multi_match": {
+            "query": t,
+            "fields": fields,
+            "type": "best_fields",
+            "operator": "and",
+        }
+    }
 
 def es_client() -> Elasticsearch:
     return Elasticsearch(ES_HOST, request_timeout=60)

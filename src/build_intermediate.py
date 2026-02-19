@@ -12,6 +12,62 @@ from .utils import clean_text, parse_date_to_iso, timed
 
 # --- NUOVA FUNZIONE: FALLBACK API ARXIV ---
 
+"""aggiunta"""
+from urllib.parse import urljoin
+
+# --- NUOVE UTILS AR5IV ---
+
+AR5IV_CARD = "https://ar5iv.labs.arxiv.org/assets/ar5iv_card.png"
+
+def is_ar5iv_html(soup: BeautifulSoup) -> bool:
+    """
+    Riconosce HTML proveniente da ar5iv.labs.arxiv.org.
+    Criterio: presenza dell'immagine card ar5iv (come da tua richiesta).
+    """
+    # 1) match diretto su <img src="...ar5iv_card.png">
+    if soup.find("img", attrs={"src": AR5IV_CARD}):
+        return True
+
+    # 2) fallback: potrebbe stare in meta og:image / twitter:image ecc.
+    for meta_name in ("og:image", "twitter:image"):
+        m = soup.find("meta", attrs={"property": meta_name}) or soup.find("meta", attrs={"name": meta_name})
+        if m and m.get("content") == AR5IV_CARD:
+            return True
+
+    return False
+
+
+def absolutize_fragment_urls(html_fragment: str, base_url: str) -> str:
+    """
+    Converte src/href relativi dentro un frammento HTML in URL assoluti usando base_url.
+    Utile soprattutto per table_html che può contenere <img src="assets/..."> o <a href="assets/...">.
+    """
+    if not html_fragment:
+        return html_fragment
+
+    frag = BeautifulSoup(html_fragment, "lxml")
+
+    # img/src
+    for tag in frag.find_all(src=True):
+        src = tag.get("src", "").strip()
+        if src:
+            tag["src"] = urljoin(base_url, src)
+
+    # a/href (e qualsiasi tag con href)
+    for tag in frag.find_all(href=True):
+        href = tag.get("href", "").strip()
+        if href:
+            tag["href"] = urljoin(base_url, href)
+
+    # ritorna solo il contenuto "utile" del frammento
+    body = frag.body
+    if body:
+        return "".join(str(x) for x in body.contents)
+    return str(frag)
+
+
+"""fine aggiunta"""
+
 def fetch_arxiv_meta_api(arxiv_id):
     """
     Recupera metadati (autori e data) tramite l'API ufficiale di arXiv.
@@ -60,26 +116,24 @@ def clean_xml_text(node):
 
 def parse_arxiv_html(html_path):
     soup = BeautifulSoup(html_path.read_text(encoding="utf-8", errors="ignore"), "lxml")
-    paper_id = html_path.stem # Es: 1008.4627v1
+    paper_id = html_path.stem  # Es: 1008.4627v1 o 1806.07524
 
     title = get_meta(soup, "citation_title") or get_meta(soup, "dc.title")
     if not title and soup.title:
         title = clean_text(soup.title.get_text()).replace("arXiv.org", "").strip(" -|")
-    
-    # Tentativo 1: Estrazione da Meta-tag
+
     authors = [clean_text(m.get("content")) for m in soup.find_all("meta", attrs={"name": "citation_author"})]
     raw_date = get_meta(soup, "citation_date") or get_meta(soup, "dc.date")
 
-    # Tentativo 2: Fallback API se mancano dati critici (Punto 11 Homework)
     if not authors or not raw_date:
         print(f"  [INFO] Dati mancanti in HTML per {paper_id}. Chiamata API in corso...")
         api_authors, api_date = fetch_arxiv_meta_api(paper_id)
         if not authors: authors = api_authors
         if not raw_date: raw_date = api_date
-        time.sleep(0.5) # Gentilezza verso l'API
+        time.sleep(0.5)
 
     date = parse_date_to_iso(raw_date)
-    
+
     abstract = get_meta(soup, "citation_abstract")
     if not abstract:
         ab_node = soup.select_one(".ltx_abstract, #abstract")
@@ -89,21 +143,33 @@ def parse_arxiv_html(html_path):
 
     tables = []
     figures = []
-    base_url = f"https://arxiv.org/html/{paper_id}/"
 
-    # Estrazione Tabelle e Figure (Punti 14-17)
+    # --- BASE URL DINAMICO: arxiv classico vs ar5iv ---
+    use_ar5iv = is_ar5iv_html(soup)
+
+    if use_ar5iv:
+        base_url = f"https://ar5iv.labs.arxiv.org/html/{paper_id}/"
+    else:
+        base_url = f"https://arxiv.org/html/{paper_id}/"
+
+    # Estrazione Tabelle e Figure
     for i, fig in enumerate(soup.find_all("figure")):
         caption_node = fig.find("figcaption")
         caption = clean_xml_text(caption_node)
         tbl_node = fig.find("table")
-        
+
         if tbl_node:
             t_id = f"T{len(tables)+1}"
+
+            raw_table_html = str(tbl_node)
+            # IMPORTANTISSIMO: se è ar5iv, rendi assoluti asset e link dentro la tabella
+            table_html = absolutize_fragment_urls(raw_table_html, base_url) if use_ar5iv else raw_table_html
+
             tables.append({
                 "table_id": t_id,
                 "caption": caption,
                 "body": clean_xml_text(tbl_node),
-                "table_html": str(tbl_node),
+                "table_html": table_html,
             })
         else:
             f_id = f"F{len(figures)+1}"
@@ -112,8 +178,8 @@ def parse_arxiv_html(html_path):
             src_filename = ""
             if img:
                 src_filename = img.get("src", "")
-                img_src = urljoin(base_url, src_filename)
-            
+                img_src = urljoin(base_url, src_filename)  # <- qui prende ar5iv o arxiv automaticamente
+
             figures.append({
                 "figure_id": f_id,
                 "caption": caption,
@@ -132,8 +198,11 @@ def parse_arxiv_html(html_path):
         "full_text": "\n".join(paragraphs),
         "paragraphs": paragraphs,
         "tables": tables,
-        "figures": figures
+        "figures": figures,
+        "doc_url": base_url,  # <- o arxiv o ar5iv
     }
+
+
 
 # --- PARSER PMC (XML) ---
 
