@@ -2,7 +2,7 @@
 import argparse
 from elasticsearch import Elasticsearch
 
-from .config import (
+from ..config import (
     ES_HOST,
     INDEX_PAPERS,
     INDEX_PARAGRAPHS,

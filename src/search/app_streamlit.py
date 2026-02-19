@@ -11,7 +11,7 @@ from elasticsearch import Elasticsearch
 # ============================================================
 # PATH / IMPORT CONFIG
 # ============================================================
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(PROJECT_ROOT))
 
 from src.config import ES_HOST, INDEX_PAPERS, INDEX_TABLES, INDEX_FIGURES  # noqa

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Dict, List
 
 from elasticsearch import Elasticsearch
-from src.search_core import cross_search
+from src.search.search_core import cross_search
 from src.config import ES_HOST, INDEX_PAPERS, INDEX_TABLES, INDEX_FIGURES
 
 QUERIES_PATH = Path("data/eval/queries_llm.jsonl")

@@ -8,8 +8,8 @@ import requests
 import arxiv
 
 # Assicurati che questi import funzionino nel tuo progetto
-from .config import ARXIV_QUERY, ARXIV_MAX_RESULTS, ARXIV_HTML_DIR, RAW_JSON_DIR, LOG_DIR
-from .utils import append_csv, load_processed_ids, clean_text
+from ..config import ARXIV_QUERY, ARXIV_MAX_RESULTS, ARXIV_HTML_DIR, RAW_JSON_DIR, LOG_DIR
+from ..utils import append_csv, load_processed_ids, clean_text
 
 ARXIV_BASE = "https://arxiv.org"
 

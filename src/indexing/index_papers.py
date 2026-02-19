@@ -2,15 +2,15 @@
 
 import json
 from elasticsearch import Elasticsearch, helpers
-from .config import (
+from ..config import (
     ES_HOST, 
     INDEX_PAPERS, 
     INDEX_PARAGRAPHS, 
     INTERMEDIATE_DIR, 
     EMBEDDINGS_ENABLED
 )
-from .embeddings import available as embeddings_available, embed
-from .utils import timed
+from ..embeddings import available as embeddings_available, embed
+from ..utils import timed
 
 def main():
     # Setup connessione elastica con timeout generosi

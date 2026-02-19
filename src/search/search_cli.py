@@ -3,7 +3,7 @@ import sys
 import json
 
 from .search_core import es_client, cross_search, SearchFilters
-from .config import INDEX_PAPERS, INDEX_TABLES, INDEX_FIGURES
+from ..config import INDEX_PAPERS, INDEX_TABLES, INDEX_FIGURES
 
 def get_paper_title_cached(es, paper_doc_id: str, cache: dict, index_papers: str) -> str:
     """

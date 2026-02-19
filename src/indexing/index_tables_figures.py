@@ -4,7 +4,7 @@ import json
 import re
 from collections import OrderedDict
 from elasticsearch import Elasticsearch, helpers
-from .config import (
+from ..config import (
     ES_HOST,
     INDEX_TABLES,
     INDEX_FIGURES,
@@ -15,8 +15,8 @@ from .config import (
     CONTEXT_TOP_K,
     EMBEDDINGS_ENABLED,
 )
-from .embeddings import available as embeddings_available, embed
-from .utils import tokenize_informative, timed
+from ..embeddings import available as embeddings_available, embed
+from ..utils import tokenize_informative, timed
 
 def mlt_context(es: Elasticsearch, paper_doc_id: str, like_text: str, k: int = 5):
     if not like_text or len(like_text) < 20:

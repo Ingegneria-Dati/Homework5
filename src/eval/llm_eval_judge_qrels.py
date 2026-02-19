@@ -5,7 +5,7 @@ import os
 import time
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
-from src.search_core import cross_search
+from src.search.search_core import cross_search
 
 from elasticsearch import Elasticsearch
 from openai import OpenAI

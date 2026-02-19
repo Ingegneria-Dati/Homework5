@@ -10,7 +10,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
 # Importa configurazioni
-from .config import INTERMEDIATE_DIR, IMAGES_DIR, OA_URL
+from ..config import INTERMEDIATE_DIR, IMAGES_DIR, OA_URL
 
 def make_session() -> requests.Session:
     s = requests.Session()

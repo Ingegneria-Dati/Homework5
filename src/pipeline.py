@@ -1,6 +1,10 @@
 import argparse
-import sys 
-from . import es_setup, scrape_arxiv, scrape_pmc, build_intermediate, index_papers, index_tables_figures
+import sys
+
+from .indexing import es_setup, index_papers, index_tables_figures
+
+from .scrape import scrape_arxiv, scrape_pmc 
+from . import build_intermediate
 
 def main():
     ap = argparse.ArgumentParser()

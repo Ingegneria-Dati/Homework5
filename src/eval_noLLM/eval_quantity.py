@@ -1,7 +1,7 @@
 import time
 import statistics
 from typing import List, Dict, Tuple
-from .search_core import es_client, cross_search, SearchFilters
+from ..search.search_core import es_client, cross_search, SearchFilters
 
 # --- GROUND TRUTH AGGIORNATO ---
 # NOTA: Se ottieni ancora 0.00, controlla l'output di DEBUG nel terminale

@@ -1,5 +1,5 @@
 import os
-from .search_core import es_client, cross_search
+from ..search.search_core import es_client, cross_search
 
 # 1. Definiamo i casi studio qualitativi
 # Ogni query è scelta per dimostrare una capacità specifica del sistema
